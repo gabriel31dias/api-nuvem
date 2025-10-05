@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
+const { initDatabase } = require('./db/init');
 
 const authRoutes = require('./routes/auth');
 const paymentProviderRoutes = require('./routes/paymentProvider');
@@ -28,9 +29,6 @@ app.use('/static', express.static(path.join(__dirname, '../public')));
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));
 }
-
-// SQLite - não precisa de conexão, tabelas criadas automaticamente
-console.log('✓ Usando SQLite como banco de dados');
 
 // Routes
 app.use('/auth', authRoutes);
@@ -62,8 +60,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  console.log(`📱 Ambiente: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`💾 Banco de dados: SQLite (database.sqlite)`);
-});
+// Inicializar banco de dados e depois iniciar servidor
+async function startServer() {
+  try {
+    console.log('💾 Inicializando banco de dados SQLite...');
+    await initDatabase();
+    console.log('✓ Banco de dados inicializado com sucesso');
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Servidor rodando na porta ${PORT}`);
+      console.log(`📱 Ambiente: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`💾 Banco de dados: SQLite (database.sqlite)`);
+    });
+  } catch (error) {
+    console.error('❌ Erro ao inicializar servidor:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

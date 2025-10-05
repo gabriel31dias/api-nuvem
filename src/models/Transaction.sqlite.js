@@ -1,34 +1,5 @@
 // Modelo Transaction usando SQLite
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-
-const dbPath = path.join(__dirname, '../../database.sqlite');
-const db = new sqlite3.Database(dbPath);
-
-// Criar tabela se não existir
-db.run(`
-  CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    storeId TEXT NOT NULL,
-    orderId TEXT NOT NULL,
-    transactionId TEXT UNIQUE NOT NULL,
-    nuvemshopTransactionId TEXT,
-    amount REAL NOT NULL,
-    currency TEXT DEFAULT 'BRL',
-    paymentMethod TEXT NOT NULL,
-    status TEXT DEFAULT 'pending',
-    paycoResponse TEXT,
-    customerData TEXT,
-    cardData TEXT,
-    installments INTEGER,
-    events TEXT,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
-
-db.run(`CREATE INDEX IF NOT EXISTS idx_storeId ON transactions(storeId)`);
-db.run(`CREATE INDEX IF NOT EXISTS idx_orderId ON transactions(orderId)`);
+const { db } = require('../db/init');
 
 class Transaction {
   constructor(data) {

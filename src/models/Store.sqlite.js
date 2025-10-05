@@ -1,26 +1,5 @@
 // Modelo Store usando SQLite
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-
-const dbPath = path.join(__dirname, '../../database.sqlite');
-const db = new sqlite3.Database(dbPath);
-
-// Criar tabela se não existir
-db.run(`
-  CREATE TABLE IF NOT EXISTS stores (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    storeId TEXT UNIQUE NOT NULL,
-    accessToken TEXT NOT NULL,
-    storeName TEXT,
-    storeUrl TEXT,
-    paymentProviderId TEXT,
-    paycoApiKey TEXT,
-    enabled INTEGER DEFAULT 0,
-    paymentMethods TEXT,
-    installedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+const { db } = require('../db/init');
 
 class Store {
   static async findOne(query) {
