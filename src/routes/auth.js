@@ -87,7 +87,7 @@ router.get('/install', async (req, res) => {
     `);
   } catch (error) {
     console.error('❌ Erro ao instalar o app:', error.response?.data || error.message);
-    res.status(500).send('Erro ao instalar o aplicativo.');
+    res.status(500).send('Erro ao instalar o aplicativo.', error.response?.data);
   }
 });
 
