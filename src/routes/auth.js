@@ -33,6 +33,53 @@ router.get('/install', async (req, res) => {
 
     console.log('✅ App instalado com sucesso para a loja:', user_id);
 
+
+    const nuvemshopAPI = new NuvemshopAPI(access_token, user_id);
+
+    const paymentProviderData = {
+      name: 'Payco',
+      description: 'Gateway de pagamento Payco - Aceite cartões, PIX e boleto',
+      logo_urls: {
+        '400x120': 'https://seu-dominio.com/logo-400x120.png'
+      },
+      configuration_url: `https://swd-sigma.vercel.app/config`,
+      support_url: 'https://payco.com.br/suporte',
+      supported_currencies: ['BRL'],
+      supported_payment_method_types: ['credit_card', 'debit_card', 'pix', 'boleto'],
+      checkout_payment_options: [
+        {
+          id: 'payco_credit_card',
+          name: 'Cartão de Crédito',
+          description: 'Pague com cartão de crédito em até 12x',
+          logo_url: 'https://seu-dominio.com/credit-card-icon.png',
+          supported_billing_countries: ['BR'],
+          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
+          kind: 'credit_card'
+        },
+        {
+          id: 'payco_pix',
+          name: 'PIX',
+          description: 'Pagamento instantâneo via PIX',
+          logo_url: 'https://seu-dominio.com/pix-icon.png',
+          supported_billing_countries: ['BR'],
+          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
+          kind: 'pix'
+        }
+      ],
+      rates_definition: {
+        percentage: '2.99',
+        flat_fee: {
+          value: '0.39',
+          currency: 'BRL'
+        }
+      },
+      enabled: true
+    };
+
+    const paymentProvider = await nuvemshopAPI.createPaymentProvider(paymentProviderData);
+
+    console.log(paymentProvider)
+
     return res.send(`
       <h2>✅ Aplicativo instalado com sucesso!</h2>
       <p>Loja ID: ${user_id}</p>

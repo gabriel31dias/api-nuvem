@@ -39,15 +39,7 @@ class NuvemshopAPI {
 
       const response = await axios.post(NUVEMSHOP_AUTH_URL, payload, { headers });
 
-      /**
-       * A resposta esperada será algo como:
-       * {
-       *   "access_token": "abc123",
-       *   "token_type": "bearer",
-       *   "scope": "read_products write_products",
-       *   "user_id": 123456
-       * }
-       */
+     
       console.log('✅ App instalado com sucesso:', response.data);
       return response.data;
     } catch (error) {
