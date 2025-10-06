@@ -1,143 +1,298 @@
 const express = require('express');
 const router = express.Router();
-const crypto = require('crypto');
 const Store = require('../models/Store.sqlite');
 const Transaction = require('../models/Transaction.sqlite');
 const NuvemshopAPI = require('../config/nuvemshop');
+const PaycoAPI = require('../config/payco');
 
-// Simula chamada ao gateway Payco
-async function processPaycoPayment(paymentData) {
-
-
-  const { amount, paymentMethod, cardData, customerData, installments } = paymentData;
-
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const success = Math.random() > 0.1; // 90% de sucesso para teste
-
-      if (success) {
-        resolve({
-          success: true,
-          transactionId: `PAYCO-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          status: paymentMethod === 'pix' ? 'pending' : 'authorized',
-          authorizationCode: Math.random().toString(36).substr(2, 9).toUpperCase(),
-          pixQrCode: paymentMethod === 'pix' ? `00020126580014br.gov.bcb.pix0136${crypto.randomUUID()}5204000053039865802BR` : null,
-          boletoUrl: paymentMethod === 'boleto' ? `https://payco.com.br/boleto/${crypto.randomUUID()}` : null
-        });
-      } else {
-        resolve({
-          success: false,
-          error: 'Pagamento recusado',
-          errorCode: 'INSUFFICIENT_FUNDS'
-        });
-      }
-    }, 1000);
-  });
-}
-
-// Processar pagamento
+/**
+ * Processar pagamento via Payco Gateway
+ */
 router.post('/process', async (req, res) => {
   try {
     const {
-      storeId,
-      orderId,
+      store_id,
+      order_id,
       amount,
       currency = 'BRL',
-      paymentMethod,
-      cardData,
-      customerData,
+      payment_method,
+      card_data,
+      customer,
       installments = 1
     } = req.body;
 
-    // Busca a loja
-    const store = await Store.findOne({ storeId });
-    if (!store) {
-      return res.status(404).json({ error: 'Loja não encontrada' });
-    }
-
-    if (!store.paycoSettings?.enabled) {
-      return res.status(403).json({ error: 'Gateway Payco não está habilitado' });
-    }
-
-    // Processa o pagamento no gateway Payco
-    const paycoResponse = await processPaycoPayment({
+    console.log('[Payment] Processing payment:', {
+      store_id,
+      order_id,
       amount,
-      paymentMethod,
-      cardData,
-      customerData,
-      installments
+      payment_method
     });
 
+    // Busca a loja
+    const store = await Store.findOne({ storeId: store_id });
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        error: 'Loja não encontrada',
+        code: 'store_not_found'
+      });
+    }
+
+    // Verifica se o gateway está habilitado
+    if (!store.paycoSettings?.enabled) {
+      return res.status(403).json({
+        success: false,
+        error: 'Gateway Payco não está habilitado',
+        code: 'gateway_disabled'
+      });
+    }
+
+    // Inicializa cliente Payco
+    const paycoAPI = new PaycoAPI();
+
+    let paycoResponse;
+
+    // Processa conforme o método de pagamento
+    switch (payment_method) {
+      case 'credit_card':
+        paycoResponse = await paycoAPI.createCreditCardPayment({
+          amount,
+          currency,
+          card_data,
+          customer,
+          installments,
+          order_id,
+          description: `Pedido ${order_id} - ${store.storeName || store.storeId}`
+        });
+        break;
+
+      case 'debit_card':
+        paycoResponse = await paycoAPI.createDebitCardPayment({
+          amount,
+          currency,
+          card_data,
+          customer,
+          order_id,
+          description: `Pedido ${order_id} - ${store.storeName || store.storeId}`
+        });
+        break;
+
+      case 'pix':
+        paycoResponse = await paycoAPI.createPixPayment({
+          amount,
+          currency,
+          customer,
+          order_id,
+          description: `Pedido ${order_id} - ${store.storeName || store.storeId}`,
+          expiration_minutes: 30
+        });
+        break;
+
+      case 'boleto':
+        paycoResponse = await paycoAPI.createBoletoPayment({
+          amount,
+          currency,
+          customer,
+          order_id,
+          description: `Pedido ${order_id} - ${store.storeName || store.storeId}`,
+          due_days: 3
+        });
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Método de pagamento inválido',
+          code: 'invalid_payment_method'
+        });
+    }
+
+    // Se o pagamento falhou
     if (!paycoResponse.success) {
+      console.error('[Payment] Payment failed:', paycoResponse);
+
       return res.status(400).json({
         success: false,
         error: paycoResponse.error,
-        errorCode: paycoResponse.errorCode
+        code: paycoResponse.error_code
       });
     }
 
     // Cria a transação no banco local
     const transaction = new Transaction({
-      storeId,
-      orderId,
-      transactionId: paycoResponse.transactionId,
+      storeId: store_id,
+      orderId: order_id,
+      transactionId: paycoResponse.transaction_id,
       amount,
       currency,
-      paymentMethod,
+      paymentMethod: payment_method,
       status: paycoResponse.status,
-      paycoResponse,
+      paycoResponse: paycoResponse.raw_response,
       customerData: {
-        name: customerData.name,
-        email: customerData.email,
-        document: customerData.document
+        name: customer.name,
+        email: customer.email,
+        document: customer.document
       },
-      cardData: cardData ? {
-        lastFourDigits: cardData.number.slice(-4),
-        brand: cardData.brand,
-        holderName: cardData.holderName
+      cardData: card_data ? {
+        lastFourDigits: card_data.number?.slice(-4),
+        brand: card_data.brand,
+        holderName: card_data.holder_name
       } : undefined,
-      installments,
+      installments: payment_method === 'credit_card' ? installments : 1,
       events: [{
         status: paycoResponse.status,
         timestamp: new Date(),
-        details: { message: 'Transação criada' }
+        details: { message: 'Transação criada via Payco' }
       }]
     });
 
     await transaction.save();
 
+    console.log('[Payment] Transaction saved:', transaction.transactionId);
+
     // Cria a transação na Nuvemshop
-    const nuvemshopAPI = new NuvemshopAPI(store.accessToken, storeId);
+    try {
+      const nuvemshopAPI = new NuvemshopAPI(store.accessToken, store_id);
 
-    const nuvemshopTransaction = await nuvemshopAPI.createTransaction({
-      order_id: orderId,
-      amount: amount.toString(),
-      currency: currency,
-      status: paycoResponse.status,
-      payment_method_id: `payco_${paymentMethod}`,
-      external_id: paycoResponse.transactionId
-    });
+      const nuvemshopTransaction = await nuvemshopAPI.createTransaction({
+        order_id: order_id,
+        amount: amount.toString(),
+        currency: currency,
+        status: paycoResponse.status,
+        payment_method_id: `payco_${payment_method}`,
+        external_id: paycoResponse.transaction_id
+      });
 
-    // Atualiza com o ID da Nuvemshop
-    transaction.nuvemshopTransactionId = nuvemshopTransaction.id;
-    await transaction.save();
+      // Atualiza com o ID da Nuvemshop
+      transaction.nuvemshopTransactionId = nuvemshopTransaction.id;
+      await transaction.save();
 
-    res.json({
+      console.log('[Payment] Nuvemshop transaction created:', nuvemshopTransaction.id);
+    } catch (error) {
+      console.error('[Payment] Error creating Nuvemshop transaction:', error);
+      // Continua mesmo se falhar na Nuvemshop
+    }
+
+    // Resposta de sucesso
+    const response = {
       success: true,
-      transactionId: paycoResponse.transactionId,
-      status: paycoResponse.status,
-      authorizationCode: paycoResponse.authorizationCode,
-      pixQrCode: paycoResponse.pixQrCode,
-      boletoUrl: paycoResponse.boletoUrl
-    });
+      id: paycoResponse.transaction_id,
+      transaction_id: paycoResponse.transaction_id,
+      status: paycoResponse.status
+    };
+
+    // Adiciona dados específicos do método de pagamento
+    if (payment_method === 'pix') {
+      response.pix_qr_code = paycoResponse.pix_qr_code;
+      response.pix_code = paycoResponse.pix_code;
+      response.expires_at = paycoResponse.expires_at;
+    } else if (payment_method === 'boleto') {
+      response.boleto_url = paycoResponse.boleto_url;
+      response.barcode = paycoResponse.barcode;
+      response.due_date = paycoResponse.due_date;
+      response.redirect_url = paycoResponse.boleto_url;
+    } else {
+      response.authorization_code = paycoResponse.authorization_code;
+    }
+
+    res.json(response);
 
   } catch (error) {
-    console.error('Erro ao processar pagamento:', error);
-    res.status(500).json({ error: error.message });
+    console.error('[Payment] Error processing payment:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      code: 'internal_error'
+    });
   }
 });
 
-// Consultar status de pagamento
+/**
+ * Consultar status de pagamento (para polling do PIX)
+ */
+router.get('/check/:transactionId', async (req, res) => {
+  try {
+    const { transactionId } = req.params;
+
+    console.log('[Payment] Checking payment status:', transactionId);
+
+    // Busca transação local
+    const transaction = await Transaction.findOne({ transactionId });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        error: 'Transação não encontrada'
+      });
+    }
+
+    // Se já foi pago, retorna direto
+    if (transaction.status === 'authorized' || transaction.status === 'paid') {
+      return res.json({
+        paid: true,
+        status: transaction.status,
+        transaction_id: transactionId
+      });
+    }
+
+    // Consulta status na Payco
+    const paycoAPI = new PaycoAPI();
+    const statusResponse = await paycoAPI.getPaymentStatus(transactionId);
+
+    if (statusResponse.success && statusResponse.paid) {
+      // Atualiza status local
+      const updatedEvents = transaction.events || [];
+      updatedEvents.push({
+        status: 'authorized',
+        timestamp: new Date(),
+        details: { message: 'Pagamento confirmado' }
+      });
+
+      await Transaction.updateTransaction(transactionId, {
+        status: 'authorized',
+        events: updatedEvents
+      });
+
+      // Atualiza na Nuvemshop
+      try {
+        const store = await Store.findOne({ storeId: transaction.storeId });
+        const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
+
+        if (transaction.nuvemshopTransactionId) {
+          await nuvemshopAPI.createTransactionEvent(transaction.nuvemshopTransactionId, {
+            status: 'authorized',
+            amount: transaction.amount.toString()
+          });
+        }
+      } catch (error) {
+        console.error('[Payment] Error updating Nuvemshop:', error);
+      }
+
+      return res.json({
+        paid: true,
+        status: 'authorized',
+        transaction_id: transactionId
+      });
+    }
+
+    res.json({
+      paid: false,
+      status: transaction.status,
+      transaction_id: transactionId
+    });
+
+  } catch (error) {
+    console.error('[Payment] Error checking payment status:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * Consultar status de transação
+ */
 router.get('/status/:transactionId', async (req, res) => {
   try {
     const transaction = await Transaction.findOne({
@@ -161,12 +316,17 @@ router.get('/status/:transactionId', async (req, res) => {
   }
 });
 
-// Cancelar/reembolsar pagamento
+/**
+ * Cancelar/reembolsar pagamento
+ */
 router.post('/refund/:transactionId', async (req, res) => {
   try {
-    const transaction = await Transaction.findOne({
-      transactionId: req.params.transactionId
-    });
+    const { transactionId } = req.params;
+    const { amount } = req.body; // Opcional: reembolso parcial
+
+    console.log('[Payment] Refunding payment:', transactionId);
+
+    const transaction = await Transaction.findOne({ transactionId });
 
     if (!transaction) {
       return res.status(404).json({ error: 'Transação não encontrada' });
@@ -176,37 +336,58 @@ router.post('/refund/:transactionId', async (req, res) => {
       return res.status(400).json({ error: 'Transação já foi reembolsada' });
     }
 
-    // AQUI VOCÊ FARIA O REEMBOLSO NO SEU GATEWAY PAYCO
+    // Processa reembolso na Payco
+    const paycoAPI = new PaycoAPI();
+    const refundResponse = await paycoAPI.refundPayment(transactionId, amount);
+
+    if (!refundResponse.success) {
+      return res.status(400).json({
+        error: refundResponse.error,
+        code: 'refund_failed'
+      });
+    }
 
     // Atualiza a transação
     const updatedEvents = transaction.events || [];
     updatedEvents.push({
       status: 'refunded',
       timestamp: new Date(),
-      details: { message: 'Reembolso processado' }
+      details: {
+        message: 'Reembolso processado',
+        refund_id: refundResponse.refund_id,
+        amount: amount || transaction.amount
+      }
     });
 
-    await Transaction.updateTransaction(transaction.transactionId, {
+    await Transaction.updateTransaction(transactionId, {
       status: 'refunded',
       events: updatedEvents
     });
 
     // Atualiza na Nuvemshop
-    const store = await Store.findOne({ storeId: transaction.storeId });
-    const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
+    try {
+      const store = await Store.findOne({ storeId: transaction.storeId });
+      const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
 
-    await nuvemshopAPI.createTransactionEvent(transaction.nuvemshopTransactionId, {
-      status: 'refunded',
-      amount: transaction.amount.toString()
-    });
+      if (transaction.nuvemshopTransactionId) {
+        await nuvemshopAPI.createTransactionEvent(transaction.nuvemshopTransactionId, {
+          status: 'refunded',
+          amount: (amount || transaction.amount).toString()
+        });
+      }
+    } catch (error) {
+      console.error('[Payment] Error updating Nuvemshop:', error);
+    }
 
     res.json({
       success: true,
-      transactionId: transaction.transactionId,
-      status: 'refunded'
+      transactionId,
+      status: 'refunded',
+      refund_id: refundResponse.refund_id
     });
+
   } catch (error) {
-    console.error('Erro ao reembolsar pagamento:', error);
+    console.error('[Payment] Error refunding payment:', error);
     res.status(500).json({ error: error.message });
   }
 });

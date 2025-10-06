@@ -40,12 +40,31 @@ router.get('/install', async (req, res) => {
       name: 'Payco',
       description: 'Gateway de pagamento Payco - Aceite cartões, PIX e boleto',
       logo_urls: {
-        '400x120': 'https://seu-dominio.com/logo-400x120.png'
+        '400x120': 'https://seu-dominio.com/logo-400x120.png',
+        '160x100': 'https://seu-dominio.com/logo-160x100.png'
       },
       configuration_url: `https://swd-sigma.vercel.app/config`,
       support_url: 'https://payco.com.br/suporte',
       supported_currencies: ['BRL'],
-      supported_payment_method_types: ['credit_card', 'debit_card', 'pix', 'boleto'],
+      supported_payment_methods: [
+        {
+          payment_method_type: 'credit_card',
+          payment_methods: ['visa', 'mastercard', 'amex', 'elo', 'hipercard']
+        },
+        {
+          payment_method_type: 'debit_card',
+          payment_methods: ['visa_debit', 'mastercard_debit']
+        },
+        {
+          payment_method_type: 'pix',
+          payment_methods: ['pix']
+        },
+        {
+          payment_method_type: 'boleto',
+          payment_methods: ['boleto']
+        }
+      ],
+      checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/checkout2.js`,
       checkout_payment_options: [
         {
           id: 'payco_credit_card',
@@ -53,8 +72,8 @@ router.get('/install', async (req, res) => {
           description: 'Pague com cartão de crédito em até 12x',
           logo_url: 'https://seu-dominio.com/credit-card-icon.png',
           supported_billing_countries: ['BR'],
-          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
-          kind: 'credit_card'
+          supported_payment_method_types: ['credit_card'],
+          integration_type: 'transparent'
         },
         {
           id: 'payco_pix',
@@ -62,8 +81,8 @@ router.get('/install', async (req, res) => {
           description: 'Pagamento instantâneo via PIX',
           logo_url: 'https://seu-dominio.com/pix-icon.png',
           supported_billing_countries: ['BR'],
-          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
-          kind: 'pix'
+          supported_payment_method_types: ['pix'],
+          integration_type: 'redirect'
         }
       ],
       rates_definition: {
@@ -120,12 +139,31 @@ router.get('/callback', async (req, res) => {
       name: 'Payco',
       description: 'Gateway de pagamento Payco - Aceite cartões, PIX e boleto',
       logo_urls: {
-        '400x120': 'https://seu-dominio.com/logo-400x120.png'
+        '400x120': 'https://seu-dominio.com/logo-400x120.png',
+        '160x100': 'https://seu-dominio.com/logo-160x100.png'
       },
       configuration_url: `https://swd-sigma.vercel.app/config`,
       support_url: 'https://payco.com.br/suporte',
       supported_currencies: ['BRL'],
-      supported_payment_method_types: ['credit_card', 'debit_card', 'pix', 'boleto'],
+      supported_payment_methods: [
+        {
+          payment_method_type: 'credit_card',
+          payment_methods: ['visa', 'mastercard', 'amex', 'elo', 'hipercard']
+        },
+        {
+          payment_method_type: 'debit_card',
+          payment_methods: ['visa_debit', 'mastercard_debit']
+        },
+        {
+          payment_method_type: 'pix',
+          payment_methods: ['pix']
+        },
+        {
+          payment_method_type: 'boleto',
+          payment_methods: ['boleto']
+        }
+      ],
+      checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
       checkout_payment_options: [
         {
           id: 'payco_credit_card',
@@ -133,8 +171,8 @@ router.get('/callback', async (req, res) => {
           description: 'Pague com cartão de crédito em até 12x',
           logo_url: 'https://seu-dominio.com/credit-card-icon.png',
           supported_billing_countries: ['BR'],
-          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
-          kind: 'credit_card'
+          supported_payment_method_types: ['credit_card'],
+          integration_type: 'transparent'
         },
         {
           id: 'payco_pix',
@@ -142,8 +180,8 @@ router.get('/callback', async (req, res) => {
           description: 'Pagamento instantâneo via PIX',
           logo_url: 'https://seu-dominio.com/pix-icon.png',
           supported_billing_countries: ['BR'],
-          checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
-          kind: 'pix'
+          supported_payment_method_types: ['pix'],
+          integration_type: 'redirect'
         }
       ],
       rates_definition: {
