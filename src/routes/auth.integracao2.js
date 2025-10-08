@@ -3,36 +3,39 @@ const router = express.Router();
 const NuvemshopAPI = require('../config/nuvemshop');
 const Store = require('../models/Store.sqlite');
 
+// Mock mode habilitado por padrão para integracao2
+const USE_MOCKS = true;
+
 router.get('/install', async (req, res) => {
   try {
     const { code } = req.query;
 
-    const IS_LOCAL_TEST = process.env.NODE_ENV === 'development' || !code || code === 'test';
+    const IS_LOCAL_TEST = USE_MOCKS || process.env.NODE_ENV === 'development' || !code || code === 'test';
 
     let tokenData, paymentProvider;
 
     if (IS_LOCAL_TEST) {
       tokenData = {
-        access_token: 'mock_access_token_' + Date.now(),
-        user_id: 123456,
+        access_token: 'mock_access_token_integracao2_' + Date.now(),
+        user_id: 999888 + Math.floor(Math.random() * 1000),
         scope: 'read_products,write_products,read_orders,write_orders',
         token_type: 'bearer'
       };
 
       paymentProvider = {
-        id: 'mock_provider_' + Date.now(),
-        name: 'Payco',
+        id: 'mock_provider_integracao2_' + Date.now(),
+        name: 'Payco Integracao2',
         enabled: true
       };
 
-      console.log('🧪 MODO TESTE: Instalação mockada');
+      console.log('🧪 MODO MOCK INTEGRACAO2: Instalação mockada');
     } else {
       tokenData = await NuvemshopAPI.install(code);
       const nuvemshopAPI = new NuvemshopAPI(tokenData.access_token, tokenData.user_id);
 
       const paymentProviderData = {
-        name: 'Payco',
-        description: 'Gateway de pagamento Payco - Aceite cartões, PIX e boleto',
+        name: 'Payco Integracao2',
+        description: 'Gateway de pagamento Payco Integracao2 - Aceite cartões, PIX e boleto',
         logo_urls: {
           '400x120': 'https://seu-dominio.com/logo-400x120.png',
           '160x100': 'https://seu-dominio.com/logo-160x100.png'
@@ -61,7 +64,7 @@ router.get('/install', async (req, res) => {
         checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/checkout2.js`,
         checkout_payment_options: [
           {
-            id: 'payco_credit_card',
+            id: 'payco_credit_card_integracao2',
             name: 'Cartão de Crédito',
             description: 'Pague com cartão de crédito em até 12x',
             logo_url: 'https://seu-dominio.com/credit-card-icon.png',
@@ -70,7 +73,7 @@ router.get('/install', async (req, res) => {
             integration_type: 'transparent'
           },
           {
-            id: 'payco_pix',
+            id: 'payco_pix_integracao2',
             name: 'PIX',
             description: 'Pagamento instantâneo via PIX',
             logo_url: 'https://seu-dominio.com/pix-icon.png',
@@ -98,7 +101,7 @@ router.get('/install', async (req, res) => {
     let store = await Store.findOne({ storeId: user_id.toString() });
 
     if (store) {
-      console.log('ja tem loja')
+      console.log('ja tem loja - atualizando')
       store.access_token = access_token;
       store.scope = scope;
       store.token_type = token_type;
@@ -118,19 +121,19 @@ router.get('/install', async (req, res) => {
       });
     }
 
-    console.log('✅ App instalado com sucesso para a loja:', user_id);
+    console.log('✅ App integracao2 instalado com sucesso para a loja:', user_id);
     console.log('📦 Payment Provider ID:', paymentProvider.id);
 
     return res.send(`
-      <h2>✅ Aplicativo instalado com sucesso!</h2>
+      <h2>✅ Aplicativo Integracao2 instalado com sucesso!</h2>
       <p>Loja ID: ${user_id}</p>
       <p>Token salvo com sucesso.</p>
       <p>Payment Provider ID: ${paymentProvider.id}</p>
-      ${IS_LOCAL_TEST ? '<p><strong>🧪 MODO TESTE ATIVO</strong></p>' : ''}
+      ${IS_LOCAL_TEST ? '<p><strong>🧪 MODO MOCK INTEGRACAO2 ATIVO</strong></p>' : ''}
     `);
   } catch (error) {
-    console.error('❌ Erro ao instalar o app:', error.response?.data || error.message);
-    res.status(500).send('Erro ao instalar o aplicativo.');
+    console.error('❌ Erro ao instalar o app integracao2:', error.response?.data || error.message);
+    res.status(500).send('Erro ao instalar o aplicativo integracao2.');
   }
 });
 
@@ -160,8 +163,8 @@ router.get('/callback', async (req, res) => {
     const nuvemshopAPI = new NuvemshopAPI(access_token, user_id);
 
     const paymentProviderData = {
-      name: 'Payco',
-      description: 'Gateway de pagamento Payco - Aceite cartões, PIX e boleto',
+      name: 'Payco Integracao2',
+      description: 'Gateway de pagamento Payco Integracao2 - Aceite cartões, PIX e boleto',
       logo_urls: {
         '400x120': 'https://seu-dominio.com/logo-400x120.png',
         '160x100': 'https://seu-dominio.com/logo-160x100.png'
@@ -190,7 +193,7 @@ router.get('/callback', async (req, res) => {
       checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
       checkout_payment_options: [
         {
-          id: 'payco_credit_card',
+          id: 'payco_credit_card_integracao2',
           name: 'Cartão de Crédito',
           description: 'Pague com cartão de crédito em até 12x',
           logo_url: 'https://seu-dominio.com/credit-card-icon.png',
@@ -199,7 +202,7 @@ router.get('/callback', async (req, res) => {
           integration_type: 'transparent'
         },
         {
-          id: 'payco_pix',
+          id: 'payco_pix_integracao2',
           name: 'PIX',
           description: 'Pagamento instantâneo via PIX',
           logo_url: 'https://seu-dominio.com/pix-icon.png',
@@ -227,7 +230,7 @@ router.get('/callback', async (req, res) => {
     // Redireciona para o frontend com sucesso
     res.redirect(`${process.env.FRONTEND_URL}/success?store_id=${user_id}`);
   } catch (error) {
-    console.error('Erro no callback OAuth:', error);
+    console.error('Erro no callback OAuth integracao2:', error);
     res.redirect(`${process.env.FRONTEND_URL}/error?message=${encodeURIComponent(error.message)}`);
   }
 });
@@ -244,7 +247,8 @@ router.get('/status/:storeId', async (req, res) => {
     res.json({
       installed: true,
       storeName: store.storeName,
-      enabled: store.paycoSettings?.enabled || false
+      enabled: store.paycoSettings?.enabled || false,
+      integration: 'integracao2'
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -256,7 +260,7 @@ router.get('/store/:storeId', async (req, res) => {
   try {
     const { storeId } = req.params;
 
-    const IS_LOCAL_TEST = process.env.NODE_ENV === 'development';
+    const IS_LOCAL_TEST = USE_MOCKS || process.env.NODE_ENV === 'development';
 
     if (IS_LOCAL_TEST) {
       // Busca a última loja cadastrada no banco
@@ -264,26 +268,26 @@ router.get('/store/:storeId', async (req, res) => {
       const lastStore = stores[stores.length - 1];
 
       const mockStoreInfo = {
-        id: lastStore?.storeId || 123456,
+        id: lastStore?.storeId || 999888,
         name: {
-          pt: 'Loja Teste Mock',
-          es: 'Tienda Test Mock',
-          en: 'Mock Test Store'
+          pt: 'Loja Teste Mock Integracao2',
+          es: 'Tienda Test Mock Integracao2',
+          en: 'Mock Test Store Integracao2'
         },
-        url: 'https://loja-teste-mock.nuvemshop.com.br',
-        original_domain: 'loja-teste-mock',
+        url: 'https://loja-teste-mock-integracao2.nuvemshop.com.br',
+        original_domain: 'loja-teste-mock-integracao2',
         main_language: 'pt',
         languages: ['pt', 'es', 'en'],
         currencies: ['BRL'],
         country: 'BR',
-        email: 'contato@lojamock.com.br',
-        phone: '+55 11 99999-9999',
-        address: 'Rua Teste, 123',
+        email: 'contato@lojamock-integracao2.com.br',
+        phone: '+55 11 99999-8888',
+        address: 'Rua Teste Integracao2, 456',
         city: 'São Paulo',
         province: 'SP',
         zipcode: '01234-567',
-        business_name: 'Loja Mock LTDA',
-        business_id: '12.345.678/0001-90',
+        business_name: 'Loja Mock Integracao2 LTDA',
+        business_id: '12.345.678/0001-99',
         plan_name: 'premium',
         created_at: lastStore?.created_at || new Date().toISOString(),
         admin_language: 'pt'
@@ -293,7 +297,7 @@ router.get('/store/:storeId', async (req, res) => {
         storeId: lastStore?.storeId || storeId,
         storeInfo: mockStoreInfo,
         localData: {
-          paymentProviderId: lastStore?.paymentProviderId || 'mock_provider_123',
+          paymentProviderId: lastStore?.paymentProviderId || 'mock_provider_integracao2_123',
           installedAt: lastStore?.created_at || new Date().toISOString(),
           scope: lastStore?.scope || 'read_products,write_products,read_orders,write_orders'
         },
@@ -303,19 +307,18 @@ router.get('/store/:storeId', async (req, res) => {
           enabled: lastStore?.enabled === 1,
           paymentMethods: lastStore?.paymentMethods ? JSON.parse(lastStore.paymentMethods) : []
         },
-        _mock: true
+        _mock: true,
+        _integration: 'integracao2'
       });
     }
 
     // Busca a loja no banco de dados
     const store = await Store.findOne({ storeId });
 
-    console.log(store)
-
     if (!store) {
       return res.status(404).json({
         error: 'Loja não encontrada',
-        message: 'Esta loja não está instalada no sistema'
+        message: 'Esta loja não está instalada no sistema integracao2'
       });
     }
 
@@ -339,10 +342,11 @@ router.get('/store/:storeId', async (req, res) => {
         paycoClientId: store.paycoClientId || null,
         enabled: store.enabled === 1,
         paymentMethods: store.paymentMethods ? JSON.parse(store.paymentMethods) : []
-      }
+      },
+      _integration: 'integracao2'
     });
   } catch (error) {
-    console.error('❌ Erro ao buscar informações da loja:', error.response?.data || error.message);
+    console.error('❌ Erro ao buscar informações da loja integracao2:', error.response?.data || error.message);
     res.status(500).json({
       error: 'Erro ao buscar informações da loja',
       message: error.response?.data?.message || error.message
@@ -362,7 +366,7 @@ router.post('/store/:storeId/config', async (req, res) => {
     if (!store) {
       return res.status(404).json({
         error: 'Loja não encontrada',
-        message: 'Esta loja não está instalada no sistema'
+        message: 'Esta loja não está instalada no sistema integracao2'
       });
     }
 
@@ -381,16 +385,17 @@ router.post('/store/:storeId/config', async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Configurações salvas com sucesso',
+      message: 'Configurações salvas com sucesso (integracao2)',
       config: {
         paycoApiKey: store.paycoApiKey,
         paycoClientId: store.paycoClientId,
         enabled: store.enabled === 1,
         paymentMethods: store.paymentMethods ? JSON.parse(store.paymentMethods) : []
-      }
+      },
+      _integration: 'integracao2'
     });
   } catch (error) {
-    console.error('❌ Erro ao salvar configurações:', error.message);
+    console.error('❌ Erro ao salvar configurações integracao2:', error.message);
     res.status(500).json({
       error: 'Erro ao salvar configurações',
       message: error.message
