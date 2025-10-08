@@ -323,7 +323,7 @@ router.get('/store/:storeId', async (req, res) => {
     const nuvemshopAPI = new NuvemshopAPI(store.access_token, storeId);
 
     // Busca as informações da loja na API da Nuvemshop
-    const storeInfo = await nuvemshopAPI.getStoreInfo();
+    const storeInfo = [];
 
     // Retorna as informações combinadas
     res.json({
