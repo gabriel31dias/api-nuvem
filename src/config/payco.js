@@ -1,6 +1,7 @@
 const axios = require('axios');
+const paycoAuthService = require('./paycoAuth');
 
-const PAYCO_API_BASE_URL = process.env.PAYCO_API_URL || 'https://api.payco.com.br/v1';
+const PAYCO_API_BASE_URL = process.env.PAYCO_API_URL || 'https://api.payments.payco.com.br';
 
 /**
  * Cliente para integração com Payco Payments Gateway
@@ -13,13 +14,14 @@ class PaycoAPI {
   }
 
   /**
-   * Retorna headers de autenticação
+   * Retorna headers de autenticação com OAuth token
    */
-  getHeaders() {
+  async getHeaders() {
+    const oauthToken = await paycoAuthService.getToken();
+
     return {
-      'Authorization': `Bearer ${this.apiKey}`,
-      'Content-Type': 'application/json',
-      'X-API-Secret': this.apiSecret
+      'Authorization': `Bearer ${oauthToken}`,
+      'Content-Type': 'application/json'
     };
   }
 
@@ -68,7 +70,7 @@ class PaycoAPI {
       const response = await axios.post(
         `${this.baseURL}/payments/credit-card`,
         payload,
-        { headers: this.getHeaders() }
+        { headers: await this.getHeaders() }
       );
 
       console.log('[Payco] Payment created successfully:', response.data);
@@ -135,7 +137,7 @@ class PaycoAPI {
       const response = await axios.post(
         `${this.baseURL}/payments/debit-card`,
         payload,
-        { headers: this.getHeaders() }
+        { headers: await this.getHeaders() }
       );
 
       console.log('[Payco] Debit payment created successfully:', response.data);
@@ -192,11 +194,13 @@ class PaycoAPI {
       };
 
       console.log('[Payco] Creating PIX payment:', { order_id, amount });
+      const header = await this.getHeaders();
+      console.log('header', header)
 
       const response = await axios.post(
         `${this.baseURL}/payments/pix`,
         payload,
-        { headers: this.getHeaders() }
+        { headers: header}
       );
 
       console.log('[Payco] PIX created successfully:', response.data);
@@ -260,7 +264,7 @@ class PaycoAPI {
       const response = await axios.post(
         `${this.baseURL}/payments/boleto`,
         payload,
-        { headers: this.getHeaders() }
+        { headers: await this.getHeaders() }
       );
 
       console.log('[Payco] Boleto created successfully:', response.data);
@@ -296,7 +300,7 @@ class PaycoAPI {
 
       const response = await axios.get(
         `${this.baseURL}/payments/${transactionId}`,
-        { headers: this.getHeaders() }
+        { headers: await this.getHeaders() }
       );
 
       return {
@@ -329,7 +333,7 @@ class PaycoAPI {
       const response = await axios.post(
         `${this.baseURL}/payments/${transactionId}/refund`,
         payload,
-        { headers: this.getHeaders() }
+        { headers: await this.getHeaders() }
       );
 
       return {
