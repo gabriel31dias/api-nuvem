@@ -28,7 +28,6 @@ router.post('/process', async (req, res) => {
       payment_method
     });
 
-    // Busca a loja
     const store = await Store.findOne({ storeId: store_id });
     if (!store) {
       return res.status(404).json({
@@ -38,7 +37,6 @@ router.post('/process', async (req, res) => {
       });
     }
 
-    // Verifica se o gateway está habilitado
     if (!store.paycoSettings?.enabled) {
       return res.status(403).json({
         success: false,
@@ -47,12 +45,10 @@ router.post('/process', async (req, res) => {
       });
     }
 
-    // Inicializa cliente Payco
-    const paycoAPI = new PaycoAPI();
+    const paycoAPI = new PaycoAPI(store.paycoClientId, store.paycoApiKey);
 
     let paycoResponse;
 
-    // Processa conforme o método de pagamento
     switch (payment_method) {
       case 'credit_card':
         paycoResponse = await paycoAPI.createCreditCardPayment({
@@ -235,12 +231,11 @@ router.get('/check/:transactionId', async (req, res) => {
       });
     }
 
-    // Consulta status na Payco
-    const paycoAPI = new PaycoAPI();
+    const store = await Store.findOne({ storeId: transaction.storeId });
+    const paycoAPI = new PaycoAPI(store.paycoClientId, store.paycoApiKey);
     const statusResponse = await paycoAPI.getPaymentStatus(transactionId);
 
     if (statusResponse.success && statusResponse.paid) {
-      // Atualiza status local
       const updatedEvents = transaction.events || [];
       updatedEvents.push({
         status: 'authorized',
@@ -253,9 +248,7 @@ router.get('/check/:transactionId', async (req, res) => {
         events: updatedEvents
       });
 
-      // Atualiza na Nuvemshop
       try {
-        const store = await Store.findOne({ storeId: transaction.storeId });
         const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
 
         if (transaction.nuvemshopTransactionId) {
@@ -336,8 +329,8 @@ router.post('/refund/:transactionId', async (req, res) => {
       return res.status(400).json({ error: 'Transação já foi reembolsada' });
     }
 
-    // Processa reembolso na Payco
-    const paycoAPI = new PaycoAPI();
+    const store = await Store.findOne({ storeId: transaction.storeId });
+    const paycoAPI = new PaycoAPI(store.paycoClientId, store.paycoApiKey);
     const refundResponse = await paycoAPI.refundPayment(transactionId, amount);
 
     if (!refundResponse.success) {
@@ -364,9 +357,7 @@ router.post('/refund/:transactionId', async (req, res) => {
       events: updatedEvents
     });
 
-    // Atualiza na Nuvemshop
     try {
-      const store = await Store.findOne({ storeId: transaction.storeId });
       const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
 
       if (transaction.nuvemshopTransactionId) {

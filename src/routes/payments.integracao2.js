@@ -204,8 +204,8 @@ router.post('/process', async (req, res) => {
       });
     }
 
-    // Usa mock ou API real
-    const paycoAPI = USE_MOCKS ? new MockPaycoAPI() : new PaycoAPI();
+    // Usa mock ou API real com credenciais da loja
+    const paycoAPI = new PaycoAPI(store.paycoClientId, store.paycoApiKey);
 
     let paycoResponse;
 
@@ -395,8 +395,9 @@ router.get('/check/:transactionId', async (req, res) => {
       });
     }
 
-    // Consulta status (mock ou real)
-    const paycoAPI = USE_MOCKS ? new MockPaycoAPI() : new PaycoAPI();
+    // Consulta status (mock ou real) com credenciais da loja
+    const store = await Store.findOne({ storeId: transaction.storeId });
+    const paycoAPI = USE_MOCKS ? new MockPaycoAPI() : new PaycoAPI(store.paycoClientId, store.paycoApiKey);
     const statusResponse = await paycoAPI.getPaymentStatus(transactionId);
 
     if (statusResponse.success && statusResponse.paid) {
@@ -413,9 +414,8 @@ router.get('/check/:transactionId', async (req, res) => {
         events: updatedEvents
       });
 
-      // Atualiza na Nuvemshop
+      // Atualiza na Nuvemshop (reutiliza store já carregada)
       try {
-        const store = await Store.findOne({ storeId: transaction.storeId });
         const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
 
         if (transaction.nuvemshopTransactionId) {
@@ -499,8 +499,9 @@ router.post('/refund/:transactionId', async (req, res) => {
       return res.status(400).json({ error: 'Transação já foi reembolsada' });
     }
 
-    // Processa reembolso (mock ou real)
-    const paycoAPI = USE_MOCKS ? new MockPaycoAPI() : new PaycoAPI();
+    // Processa reembolso (mock ou real) com credenciais da loja
+    const store = await Store.findOne({ storeId: transaction.storeId });
+    const paycoAPI = USE_MOCKS ? new MockPaycoAPI() : new PaycoAPI(store.paycoClientId, store.paycoApiKey);
     const refundResponse = await paycoAPI.refundPayment(transactionId, amount);
 
     if (!refundResponse.success) {
@@ -527,9 +528,8 @@ router.post('/refund/:transactionId', async (req, res) => {
       events: updatedEvents
     });
 
-    // Atualiza na Nuvemshop
+    // Atualiza na Nuvemshop (reutiliza store já carregada)
     try {
-      const store = await Store.findOne({ storeId: transaction.storeId });
       const nuvemshopAPI = new NuvemshopAPI(store.accessToken, transaction.storeId);
 
       if (transaction.nuvemshopTransactionId) {
