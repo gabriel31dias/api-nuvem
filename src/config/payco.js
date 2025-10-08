@@ -17,7 +17,7 @@ class PaycoAPI {
    * Retorna headers de autenticação com OAuth token
    */
   async getHeaders() {
-    const oauthToken = await paycoAuthService.getToken();
+    const oauthToken = await paycoAuthService.getToken(this.apiSecret, this.apiKey);
 
     return {
       'Authorization': `Bearer ${oauthToken}`,
