@@ -135,20 +135,64 @@ class Store {
 
   static async update(storeData) {
     return new Promise((resolve, reject) => {
-      const { storeId, access_token, scope } = storeData;
+      const {
+        storeId,
+        access_token,
+        scope,
+        paycoApiKey,
+        paycoClientId,
+        enabled,
+        paymentMethods,
+        paymentProviderId
+      } = storeData;
 
-      db.run(
-        `UPDATE stores SET
-          accessToken = ?,
-          storeName = ?,
-          updatedAt = CURRENT_TIMESTAMP
-        WHERE storeId = ?`,
-        [access_token, scope || null, storeId],
-        function(err) {
-          if (err) return reject(err);
-          Store.findOne({ storeId }).then(resolve).catch(reject);
-        }
-      );
+      // Build dynamic UPDATE query based on provided fields
+      const updates = [];
+      const values = [];
+
+      if (access_token !== undefined) {
+        updates.push('accessToken = ?');
+        values.push(access_token);
+      }
+      if (scope !== undefined) {
+        updates.push('storeName = ?');
+        values.push(scope);
+      }
+      if (paycoApiKey !== undefined) {
+        updates.push('paycoApiKey = ?');
+        values.push(paycoApiKey);
+      }
+      if (paycoClientId !== undefined) {
+        updates.push('paycoClientId = ?');
+        values.push(paycoClientId);
+      }
+      if (enabled !== undefined) {
+        updates.push('enabled = ?');
+        values.push(enabled);
+      }
+      if (paymentMethods !== undefined) {
+        updates.push('paymentMethods = ?');
+        values.push(paymentMethods);
+      }
+      if (paymentProviderId !== undefined) {
+        updates.push('paymentProviderId = ?');
+        values.push(paymentProviderId);
+      }
+
+      if (updates.length === 0) {
+        // No fields to update
+        return Store.findOne({ storeId }).then(resolve).catch(reject);
+      }
+
+      updates.push('updatedAt = CURRENT_TIMESTAMP');
+      values.push(storeId);
+
+      const query = `UPDATE stores SET ${updates.join(', ')} WHERE storeId = ?`;
+
+      db.run(query, values, function(err) {
+        if (err) return reject(err);
+        Store.findOne({ storeId }).then(resolve).catch(reject);
+      });
     });
   }
 }
