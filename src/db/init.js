@@ -29,6 +29,7 @@ function initDatabase() {
           storeUrl TEXT,
           paymentProviderId TEXT,
           paycoApiKey TEXT,
+          paycoClientId TEXT,
           enabled INTEGER DEFAULT 0,
           paymentMethods TEXT,
           installedAt DATETIME DEFAULT CURRENT_TIMESTAMP,

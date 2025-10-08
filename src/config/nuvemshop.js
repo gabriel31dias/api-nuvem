@@ -140,6 +140,22 @@ class NuvemshopAPI {
   }
 
   /** =====================
+   *  STORE INFO
+   *  ===================== */
+  async getStoreInfo() {
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/store`,
+        { headers: this.getHeaders() }
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar informações da loja:', error.response?.data || error.message);
+      throw error;
+    }
+  }
+
+  /** =====================
    *  AUTH (token refresh)
    *  ===================== */
   static async getAccessToken(code) {

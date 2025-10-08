@@ -18,6 +18,26 @@ class Store {
     });
   }
 
+  static async findAll() {
+    return new Promise((resolve, reject) => {
+      db.all('SELECT * FROM stores ORDER BY installedAt ASC', [], (err, rows) => {
+        if (err) return reject(err);
+        if (!rows) return resolve([]);
+
+        const stores = rows.map(row => {
+          if (row && row.paymentMethods) {
+            row.paycoSettings = {
+              enabled: row.enabled === 1,
+              paymentMethods: JSON.parse(row.paymentMethods)
+            };
+          }
+          return row;
+        });
+        resolve(stores);
+      });
+    });
+  }
+
   static async findOneAndUpdate(query, update, options = {}) {
     return new Promise((resolve, reject) => {
       const { storeId } = query;
