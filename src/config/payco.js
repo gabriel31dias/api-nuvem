@@ -28,6 +28,8 @@ class PaycoAPI {
    * @param {Object} paymentData - Dados do pagamento
    */
   async createCreditCardPayment(paymentData) {
+    console.log('paymentData card credit', paymentData)
+
     try {
       const {
         amount,
@@ -95,6 +97,8 @@ class PaycoAPI {
    * @param {Object} paymentData - Dados do pagamento
    */
   async createDebitCardPayment(paymentData) {
+    console.log('paymentData card debit', paymentData)
+
     try {
       const {
         amount,
@@ -170,6 +174,8 @@ class PaycoAPI {
         expiration_minutes = 30
       } = paymentData;
 
+      console.log('paymentData pix', paymentData)
+
       const payload = {
         amount: parseFloat(amount),
         currency,
@@ -221,6 +227,8 @@ class PaycoAPI {
    * @param {Object} paymentData - Dados do pagamento
    */
   async createBoletoPayment(paymentData) {
+    console.log('paymentData boleto', paymentData)
+
     try {
       const {
         amount,
