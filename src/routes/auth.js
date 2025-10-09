@@ -58,7 +58,7 @@ router.get('/install', async (req, res) => {
             payment_methods: ['boleto']
           }
         ],
-        checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/dwwd.js`,
+        checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/checkout2.js`,
         checkout_payment_options: [
           {
             id: 'payco_credit_card_integracao2',
