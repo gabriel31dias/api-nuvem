@@ -62,9 +62,10 @@ router.get('/install', async (req, res) => {
           }
         ],
         checkout_js_url: `${process.env.BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com'}/checkout2.js`,
+        enabled_payment_methods: ['credit_card', 'debit_card', 'pix', 'boleto'],
         checkout_payment_options: [
           {
-            id: 'payco_credit_card_integracao2',
+            id: 'payco_credit_card',
             name: 'Cartão de Crédito',
             description: 'Pague com cartão de crédito em até 12x',
             logo_url: 'https://seu-dominio.com/credit-card-icon.png',
@@ -209,9 +210,10 @@ router.get('/callback', async (req, res) => {
         }
       ],
       checkout_js_url: `${process.env.BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com'}/checkout2.js`,
+      enabled_payment_methods: ['credit_card', 'debit_card', 'pix', 'boleto'],
       checkout_payment_options: [
         {
-          id: 'payco_credit_card_integracao2',
+          id: 'payco_credit_card',
           name: 'Cartão de Crédito',
           description: 'Pague com cartão de crédito em até 12x',
           logo_url: 'https://seu-dominio.com/credit-card-icon.png',

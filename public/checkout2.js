@@ -40,7 +40,7 @@
       // CARTÃO DE CRÉDITO - Transparent Integration
       // ============================================
       const CreditCardPayment = PaymentOptions.Transparent.CardPayment({
-        id: 'payco_credit_card_integracao2',
+        id: 'payco_credit_card',
         version: 'v2',
 
         fields: {
@@ -444,7 +444,7 @@
    * Renderiza formulário de cartão de crédito
    */
   function renderCreditCardForm() {
-    const container = document.querySelector('[data-payment-option="payco_credit_card_integracao2"]');
+    const container = document.querySelector('[data-payment-option="payco_credit_card"]');
     if (!container) return;
 
     container.innerHTML = `

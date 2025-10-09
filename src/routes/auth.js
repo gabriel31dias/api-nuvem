@@ -58,7 +58,7 @@ router.get('/install', async (req, res) => {
             payment_methods: ['boleto']
           }
         ],
-        checkout_js_url: `${process.env.BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com'}/checkout2.js`,
+        checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/dwwd.js`,
         checkout_payment_options: [
           {
             id: 'payco_credit_card_integracao2',
@@ -76,13 +76,13 @@ router.get('/install', async (req, res) => {
             logo_url: 'https://seu-dominio.com/debit-card-icon.png',
             supported_billing_countries: ['BR'],
             supported_payment_method_types: ['debit_card'],
-            integration_type: 'transparent'
+            integration_type: 'redirect'
           },
           {
             id: 'payco_pix',
             name: 'PIX',
             description: 'Pagamento instantâneo via PIX',
-            logo_url: 'https://seu-dominio.com/pix-icon.png',
+            logo_url: 'https://cdn.payments.payco.com.br/landing-page/assets/images/logo.svg',
             supported_billing_countries: ['BR'],
             supported_payment_method_types: ['pix'],
             integration_type: 'transparent'
