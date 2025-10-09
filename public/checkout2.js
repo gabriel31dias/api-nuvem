@@ -304,9 +304,9 @@
       });
 
       // ============================================
-      // PIX - Transparent Integration (exibe QR Code diretamente no checkout)
+      // PIX - External Redirect Integration (redireciona para página externa)
       // ============================================
-      const PixPayment = PaymentOptions.Transparent.Iframe({
+      const PixPayment = PaymentOptions.ExternalPayment({
         id: 'payco_pix',
         version: 'v2',
 
@@ -332,7 +332,7 @@
 
           log('Payment payload for PIX:', JSON.stringify(paymentPayload, null, 2));
 
-          // Gera o PIX
+          // Gera o PIX e redireciona
           fetch(API_URL + '/payments/process', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -360,32 +360,21 @@
             }
 
             const transactionId = response.transaction_id || response.id;
-            const qrCode = response.pix_qr_code;
-            const pixCode = response.pix_code;
+            const redirectUrl = response.pix_url || response.redirect_url;
 
             log('PIX Transaction ID:', transactionId);
-            log('PIX QR Code present:', !!qrCode);
-            log('PIX Code present:', !!pixCode);
+            log('PIX Redirect URL:', redirectUrl);
 
-            // Renderiza o QR Code diretamente na página
-            renderPixQRCode(qrCode, pixCode);
-
-            // Retorna sucesso
+            // Retorna sucesso com URL de redirecionamento
             callback({
               success: true,
               transaction_id: transactionId,
+              redirect_url: redirectUrl || (API_URL + '/pix/' + transactionId),
               status: 'pending'
             });
-
-            // Inicia polling para verificar pagamento
-            log('Starting PIX polling for transaction:', transactionId);
-            setTimeout(function() {
-              startPixPolling(transactionId, Checkout, callback);
-            }, 5000);
           })
           .catch(function(error) {
             log('PIX error:', error);
-            renderPixError(error.message || error.error || 'Erro ao gerar PIX');
             Checkout.showErrorCode(error.code || error.error || 'pix_generation_error');
             callback({
               success: false,
@@ -658,31 +647,49 @@
    * Renderiza QR Code do PIX no container
    */
   function renderPixQRCode(qrCodeImage, pixCode) {
+    log('renderPixQRCode called with:', { hasQrCode: !!qrCodeImage, hasPixCode: !!pixCode });
+
     const container = document.querySelector('[data-payment-option="payco_pix"]');
-    if (!container) return;
+    if (!container) {
+      log('ERROR: PIX container not found for QR Code rendering!');
+      return;
+    }
+
+    log('Found PIX container, rendering QR Code...');
 
     container.innerHTML = `
       <div class="payco-form">
-        <div class="payco-qrcode">
-          <h4>Escaneie o QR Code:</h4>
-          ${qrCodeImage ? `<img src="data:image/png;base64,${qrCodeImage}" alt="QR Code PIX" />` : ''}
+        <div class="payco-qrcode" style="display: block !important; visibility: visible !important;">
+          <h4 style="margin-bottom: 20px; font-size: 18px; color: #333;">Escaneie o QR Code para pagar:</h4>
+          ${qrCodeImage ? `
+            <div class="payco-qrcode-image" style="background: white; padding: 20px; border-radius: 8px; display: inline-block; margin-bottom: 20px;">
+              <img src="data:image/png;base64,${qrCodeImage}" alt="QR Code PIX" style="display: block; max-width: 250px; width: 100%; height: auto;" />
+            </div>
+          ` : '<p style="color: #f44336;">QR Code não disponível</p>'}
           ${pixCode ? `
-            <div class="payco-pix-code">
-              <label>Ou copie o código PIX:</label>
-              <input type="text" value="${pixCode}" readonly id="payco-pix-code-input" />
-              <button onclick="
-                document.getElementById('payco-pix-code-input').select();
-                document.execCommand('copy');
-                this.textContent = 'Copiado!';
-                setTimeout(() => this.textContent = 'Copiar', 2000);
-              ">Copiar</button>
+            <div class="payco-pix-code" style="margin-top: 20px;">
+              <label style="display: block; margin-bottom: 10px; font-weight: 500;">Ou copie o código PIX:</label>
+              <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" value="${pixCode}" readonly id="payco-pix-code-input" style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px;" />
+                <button onclick="
+                  var input = document.getElementById('payco-pix-code-input');
+                  input.select();
+                  input.setSelectionRange(0, 99999);
+                  document.execCommand('copy');
+                  this.textContent = 'Copiado!';
+                  this.style.background = '#00a650';
+                  var btn = this;
+                  setTimeout(function() { btn.textContent = 'Copiar'; btn.style.background = '#00a650'; }, 2000);
+                " style="padding: 10px 20px; background: #00a650; color: white; border: none; border-radius: 4px; cursor: pointer; white-space: nowrap;">Copiar</button>
+              </div>
             </div>
           ` : ''}
-          <p class="payco-waiting">Aguardando pagamento...</p>
+          <p class="payco-waiting" style="margin-top: 20px; font-weight: 600; color: #ff9800; font-size: 14px;">⏱️ Aguardando pagamento...</p>
         </div>
       </div>
     `;
 
+    log('QR Code rendered successfully');
     injectStyles();
   }
 
@@ -914,31 +921,73 @@
       .payco-qrcode {
         text-align: center;
         padding: 20px;
+        display: block !important;
+        visibility: visible !important;
+        background: #f9f9f9;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+      }
+      .payco-qrcode h4 {
+        margin: 0 0 20px 0;
+        font-size: 18px;
+        color: #333;
+        font-weight: 600;
+      }
+      .payco-qrcode-image {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        display: inline-block;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       .payco-qrcode img {
         max-width: 250px;
-        margin: 15px auto;
+        width: 100%;
+        height: auto;
+        display: block;
+        margin: 0 auto;
       }
       .payco-pix-code {
-        margin-top: 15px;
+        margin-top: 20px;
+        text-align: left;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .payco-pix-code label {
+        display: block;
+        margin-bottom: 10px;
+        font-weight: 500;
+        color: #333;
       }
       .payco-pix-code input {
-        width: calc(100% - 80px);
-        padding: 8px;
-        margin-right: 10px;
+        flex: 1;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 12px;
       }
       .payco-pix-code button {
-        padding: 8px 16px;
+        padding: 10px 20px;
         background: #00a650;
         color: white;
         border: none;
         border-radius: 4px;
         cursor: pointer;
+        white-space: nowrap;
+        font-weight: 500;
+        transition: background 0.3s;
+      }
+      .payco-pix-code button:hover {
+        background: #008f42;
       }
       .payco-waiting {
-        margin-top: 15px;
+        margin-top: 20px;
         font-weight: 600;
         color: #ff9800;
+        font-size: 14px;
       }
       .payco-error {
         padding: 15px;

@@ -44,6 +44,9 @@ app.use('/payment-provider', paymentProviderRoutes);
 app.use('/webhooks', webhookRoutes);
 app.use('/payments', paymentRoutes);
 
+// Rota direta para PIX (sem /payments no caminho)
+app.use('/pix', paymentRoutes);
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({
