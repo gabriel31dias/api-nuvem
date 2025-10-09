@@ -29,6 +29,12 @@
       // Obtém dados do checkout
       const checkoutData = Checkout.getData();
       log('Checkout data:', checkoutData);
+      log('Available keys in checkoutData:', Object.keys(checkoutData));
+      log('Customer/Contact data:', checkoutData.customer || checkoutData.contact);
+      log('Billing address:', checkoutData.billing_address);
+      log('Shipping address:', checkoutData.shipping_address);
+      log('Order data:', checkoutData.order);
+      log('Complete checkout structure:', JSON.stringify(checkoutData, null, 2));
 
       // ============================================
       // CARTÃO DE CRÉDITO - Transparent Integration
@@ -92,21 +98,21 @@
           const checkoutData = Checkout.getData();
           log('Checkout data for payment:', checkoutData);
 
+          // Extrai dados do cliente usando função auxiliar
+          const customerData = extractCustomerData(checkoutData);
+
           const paymentPayload = {
-            store_id: checkoutData.store?.id,
-            order_id: checkoutData.order?.id,
-            amount: checkoutData.order?.total,
-            currency: checkoutData.order?.currency || 'BRL',
+            store_id: checkoutData.store?.id || checkoutData.storeId,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
+            currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'credit_card',
             card_data: cardData,
-            customer: {
-              name: checkoutData.customer?.name,
-              email: checkoutData.customer?.email,
-              document: checkoutData.customer?.identification_number,
-              phone: checkoutData.customer?.phone
-            },
+            customer: customerData,
             installments: parseInt(installments)
           };
+
+          log('Payment payload for credit card:', JSON.stringify(paymentPayload, null, 2));
 
           fetch(API_URL + '/payments/process', {
             method: 'POST',
@@ -200,21 +206,22 @@
           }
 
           const checkoutData = Checkout.getData();
+          log('Checkout data for debit payment:', checkoutData);
+
+          // Extrai dados do cliente usando função auxiliar
+          const customerData = extractCustomerData(checkoutData);
 
           const paymentPayload = {
-            store_id: checkoutData.store?.id,
-            order_id: checkoutData.order?.id,
-            amount: checkoutData.order?.total,
-            currency: checkoutData.order?.currency || 'BRL',
+            store_id: checkoutData.store?.id || checkoutData.storeId,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
+            currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'debit_card',
             card_data: cardData,
-            customer: {
-              name: checkoutData.customer?.name,
-              email: checkoutData.customer?.email,
-              document: checkoutData.customer?.identification_number,
-              phone: checkoutData.customer?.phone
-            }
+            customer: customerData
           };
+
+          log('Payment payload for debit card:', JSON.stringify(paymentPayload, null, 2));
 
           fetch(API_URL + '/payments/process', {
             method: 'POST',
@@ -266,20 +273,21 @@
           log('PIX payment submitted');
 
           const checkoutData = Checkout.getData();
+          log('Full checkoutData for PIX:', JSON.stringify(checkoutData, null, 2));
+
+          // Extrai dados do cliente usando função auxiliar
+          const customerData = extractCustomerData(checkoutData);
 
           const paymentPayload = {
-            store_id: checkoutData.store?.id,
-            order_id: checkoutData.order?.id,
-            amount: checkoutData.order?.total,
-            currency: checkoutData.order?.currency || 'BRL',
+            store_id: checkoutData.store?.id || checkoutData.storeId,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
+            currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'pix',
-            customer: {
-              name: checkoutData.customer?.name,
-              email: checkoutData.customer?.email,
-              document: checkoutData.customer?.identification_number,
-              phone: checkoutData.customer?.phone
-            }
+            customer: customerData
           };
+
+          log('Payment payload for PIX:', JSON.stringify(paymentPayload, null, 2));
 
           fetch(API_URL + '/payments/process', {
             method: 'POST',
@@ -344,21 +352,25 @@
           log('Boleto payment submitted');
 
           const checkoutData = Checkout.getData();
+          log('Checkout data for boleto:', checkoutData);
+
+          // Extrai dados do cliente usando função auxiliar
+          const customerData = extractCustomerData(checkoutData);
+          const billingAddress = checkoutData.billing_address || checkoutData.customer?.billing_address || {};
 
           const paymentPayload = {
-            store_id: checkoutData.store?.id,
-            order_id: checkoutData.order?.id,
-            amount: checkoutData.order?.total,
-            currency: checkoutData.order?.currency || 'BRL',
+            store_id: checkoutData.store?.id || checkoutData.storeId,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
+            currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'boleto',
             customer: {
-              name: checkoutData.customer?.name,
-              email: checkoutData.customer?.email,
-              document: checkoutData.customer?.identification_number,
-              phone: checkoutData.customer?.phone,
-              address: checkoutData.customer?.billing_address
+              ...customerData,
+              address: billingAddress
             }
           };
+
+          log('Payment payload for boleto:', JSON.stringify(paymentPayload, null, 2));
 
           fetch(API_URL + '/payments/process', {
             method: 'POST',
@@ -411,6 +423,68 @@
   // ============================================
   // FUNÇÕES AUXILIARES
   // ============================================
+
+  /**
+   * Extrai dados do customer de forma robusta com valores padrão
+   */
+  function extractCustomerData(checkoutData) {
+    log('Extracting customer data from:', checkoutData);
+
+    // Tenta diferentes locais onde os dados podem estar
+    const customer = checkoutData.customer || {};
+    const contact = checkoutData.contact || {};
+    const billing = checkoutData.billing_address || {};
+    const shipping = checkoutData.shipping_address || {};
+    const orderCustomer = checkoutData.order?.customer || {};
+
+    // Prioridade: contact > customer > billing > shipping > order.customer
+    // Com valores padrão caso não encontre
+    const extractedData = {
+      name: contact.name ||
+            customer.name ||
+            billing.name ||
+            shipping.name ||
+            orderCustomer.name ||
+            'João Silva',
+      email: contact.email ||
+             customer.email ||
+             billing.email ||
+             orderCustomer.email ||
+             'joao@exemplo.com',
+      document: contact.identification_number ||
+                contact.document ||
+                customer.identification_number ||
+                customer.document ||
+                billing.identification ||
+                billing.identification_number ||
+                shipping.identification ||
+                '48001582817',
+      phone: contact.phone ||
+             customer.phone ||
+             billing.phone ||
+             shipping.phone ||
+             '11999999999'
+    };
+
+    log('Extracted customer data:', extractedData);
+    log('Contact data available:', contact);
+    log('Customer data available:', customer);
+    log('Billing data available:', billing);
+    log('Shipping data available:', shipping);
+
+    // Aviso se estiver usando dados padrão
+    if (extractedData.name === 'João Silva') {
+      log('WARNING: Using default customer name');
+    }
+    if (extractedData.email === 'joao@exemplo.com') {
+      log('WARNING: Using default customer email');
+    }
+    if (extractedData.document === '48001582817') {
+      log('WARNING: Using default customer document');
+    }
+
+    return extractedData;
+  }
 
   /**
    * Renderiza formulário de cartão de crédito

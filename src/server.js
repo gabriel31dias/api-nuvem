@@ -14,21 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middlewares
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://swd-olive.vercel.app',
-  process.env.FRONTEND_URL
-].filter(Boolean);
-
+// CORS liberado para todos os domínios
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true
+  origin: '*',
+  credentials: false
 }));
 
 app.use(bodyParser.json());

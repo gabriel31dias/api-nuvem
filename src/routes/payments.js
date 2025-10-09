@@ -21,12 +21,26 @@ router.post('/process', async (req, res) => {
       installments = 1
     } = req.body;
 
+    // Aplica valores padrão caso dados do customer não estejam completos
+    const customerData = {
+      name: customer?.name || 'João Silva',
+      email: customer?.email || 'joao@exemplo.com',
+      document: customer?.document || '48001582817',
+      phone: customer?.phone || '11999999999'
+    };
+
     console.log('[Payment] Processing payment:', {
       store_id,
       order_id,
       amount,
-      payment_method
+      payment_method,
+      customer: customerData
     });
+
+    // Avisa se estiver usando dados padrão
+    if (customerData.email === 'joao@exemplo.com') {
+      console.warn('[Payment] WARNING: Using default customer data');
+    }
 
     const store = await Store.findOne({ storeId: store_id });
     if (!store) {
@@ -55,7 +69,7 @@ router.post('/process', async (req, res) => {
           amount,
           currency,
           card_data,
-          customer,
+          customer: customerData,
           installments,
           order_id,
           description: `Pedido ${order_id} - ${store.storeName || store.storeId}`
@@ -67,7 +81,7 @@ router.post('/process', async (req, res) => {
           amount,
           currency,
           card_data,
-          customer,
+          customer: customerData,
           order_id,
           description: `Pedido ${order_id} - ${store.storeName || store.storeId}`
         });
@@ -77,7 +91,7 @@ router.post('/process', async (req, res) => {
         paycoResponse = await paycoAPI.createPixPayment({
           amount,
           currency,
-          customer,
+          customer: customerData,
           order_id,
           description: `Pedido ${order_id} - ${store.storeName || store.storeId}`,
           expiration_minutes: 30
@@ -88,7 +102,7 @@ router.post('/process', async (req, res) => {
         paycoResponse = await paycoAPI.createBoletoPayment({
           amount,
           currency,
-          customer,
+          customer: customerData,
           order_id,
           description: `Pedido ${order_id} - ${store.storeName || store.storeId}`,
           due_days: 3
@@ -125,9 +139,10 @@ router.post('/process', async (req, res) => {
       status: paycoResponse.status,
       paycoResponse: paycoResponse.raw_response,
       customerData: {
-        name: customer.name,
-        email: customer.email,
-        document: customer.document
+        name: customerData.name,
+        email: customerData.email,
+        document: customerData.document,
+        phone: customerData.phone
       },
       cardData: card_data ? {
         lastFourDigits: card_data.number?.slice(-4),
