@@ -68,7 +68,7 @@ class PaycoAPI {
       console.log('[Payco] Creating credit card payment:', { order_id, amount });
 
       const response = await axios.post(
-        `${this.baseURL}/payments/credit-card`,
+        `${this.baseURL}/public-api/api/v1/payments/card`,
         payload,
         { headers: await this.getHeaders() }
       );
@@ -169,31 +169,33 @@ class PaycoAPI {
     try {
       const {
         amount,
-        currency = 'BRL',
         customer,
         order_id,
         description,
-        expiration_minutes = 30
+        expiration_minutes = 30,
+        callback_url
       } = paymentData;
 
       console.log('paymentData pix', paymentData)
 
+      // Calcula a data de expiração baseada nos minutos
+      const expirationDate = new Date();
+      expirationDate.setMinutes(expirationDate.getMinutes() + expiration_minutes);
+
       const payload = {
+        expiration_date: expirationDate.toISOString(),
         amount: parseFloat(amount),
-        currency,
-        payment_method: 'pix',
+        description: description || `Pedido #${order_id}`,
         customer: {
-          name: customer.name,
-          email: customer.email,
-          document: customer.document,
-          phone: customer.phone
-        },
-        expiration_minutes,
-        external_reference: order_id,
-        description: description || `Pedido #${order_id}`
+          name: customer?.name,
+          document: {
+            number: customer?.document,
+            type: 'CPF'
+          }
+        }
       };
 
-      console.log('[Payco] Creating PIX payment:', { order_id, amount });
+      console.log('[Payco] Creating PIX payment:', { order_id, amount, payload });
       const header = await this.getHeaders();
       console.log('header', header)
 

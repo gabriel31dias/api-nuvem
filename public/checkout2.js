@@ -10,7 +10,7 @@
   // Configuração da API
   const API_URL = window.location.hostname === 'localhost'
     ? 'http://localhost:3000'
-    : (window.PAYCO_BACKEND_URL || 'https://seu-backend.com.br');
+    : (window.PAYCO_BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com');
 
   const DEBUG = window.location.hostname === 'localhost';
 
