@@ -209,11 +209,11 @@ class PaycoAPI {
 
       return {
         success: true,
-        transaction_id: response.data.id || response.data.transaction_id,
-        status: 'pending',
-        pix_qr_code: response.data.qr_code_base64 || response.data.qr_code_image,
-        pix_code: response.data.qr_code || response.data.pix_copy_paste,
-        expires_at: response.data.expires_at,
+        transaction_id: response.data.transaction_id || response.data.id,
+        status: this.mapStatus(response.data.status),
+        pix_qr_code: response.data.qr_code_base64,
+        pix_code: response.data.qr_code,
+        expires_at: response.data.expiration_date,
         raw_response: response.data
       };
     } catch (error) {
@@ -362,14 +362,23 @@ class PaycoAPI {
       'approved': 'authorized',
       'paid': 'authorized',
       'authorized': 'authorized',
+      'APPROVED': 'authorized',
+      'PAID': 'authorized',
       'pending': 'pending',
       'processing': 'pending',
       'waiting_payment': 'pending',
+      'WAITING_PAYMENT': 'pending',
+      'PENDING': 'pending',
       'rejected': 'rejected',
       'failed': 'rejected',
+      'REJECTED': 'rejected',
+      'FAILED': 'rejected',
       'cancelled': 'cancelled',
+      'CANCELLED': 'cancelled',
       'refunded': 'refunded',
-      'chargeback': 'refunded'
+      'chargeback': 'refunded',
+      'REFUNDED': 'refunded',
+      'CHARGEBACK': 'refunded'
     };
 
     return statusMap[paycoStatus] || paycoStatus;
