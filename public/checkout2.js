@@ -40,7 +40,7 @@
       // CARTÃO DE CRÉDITO - Transparent Integration
       // ============================================
       const CreditCardPayment = PaymentOptions.Transparent.CardPayment({
-        id: 'payco_credit_card',
+        id: 'payco_credit_card_integracao2',
         version: 'v2',
 
         fields: {
@@ -103,7 +103,7 @@
 
           const paymentPayload = {
             store_id: checkoutData.store?.id || checkoutData.storeId,
-            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id || 'temp_' + Date.now(),
             amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
             currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'credit_card',
@@ -129,15 +129,8 @@
           .then(function(response) {
             log('Payment processed successfully:', response);
 
-            // Agora sim, usa Checkout.processPayment para criar a Transaction na Nuvemshop
-            return Checkout.processPayment({
-              transaction_id: response.transaction_id,
-              status: response.status
-            }).then(function() {
-              return response;
-            });
-          })
-          .then(function(response) {
+            // Retorna sucesso direto sem chamar processPayment
+            // O backend já criou a transaction na Nuvemshop
             callback({
               success: true,
               transaction_id: response.transaction_id
@@ -213,7 +206,7 @@
 
           const paymentPayload = {
             store_id: checkoutData.store?.id || checkoutData.storeId,
-            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id || 'temp_' + Date.now(),
             amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
             currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'debit_card',
@@ -235,12 +228,9 @@
           })
           .then(function(response) {
             log('Debit payment processed:', response);
-            return Checkout.processPayment({
-              transaction_id: response.transaction_id,
-              status: response.status
-            }).then(function() { return response; });
-          })
-          .then(function(response) {
+
+            // Retorna sucesso direto sem chamar processPayment
+            // O backend já criou a transaction na Nuvemshop
             callback({
               success: true,
               transaction_id: response.transaction_id
@@ -258,29 +248,20 @@
       });
 
       // ============================================
-      // PIX - External Redirect Integration
+      // PIX - Transparent Integration (QR Code inline)
       // ============================================
-      const PixPayment = PaymentOptions.ExternalPayment({
+      const PixPayment = PaymentOptions.Transparent.Iframe({
         id: 'payco_pix',
-        version: 'v2',
 
-        onLoad: function() {
+        onLoad: function(actions) {
           log('PIX payment option loaded');
-          renderPixInfo();
-        },
-
-        onSubmit: function(callback) {
-          log('PIX payment submitted');
 
           const checkoutData = Checkout.getData();
-          log('Full checkoutData for PIX:', JSON.stringify(checkoutData, null, 2));
-
-          // Extrai dados do cliente usando função auxiliar
           const customerData = extractCustomerData(checkoutData);
 
           const paymentPayload = {
             store_id: checkoutData.store?.id || checkoutData.storeId,
-            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id || 'temp_' + Date.now(),
             amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
             currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'pix',
@@ -289,6 +270,7 @@
 
           log('Payment payload for PIX:', JSON.stringify(paymentPayload, null, 2));
 
+          // Gera o PIX quando o método é carregado
           fetch(API_URL + '/payments/process', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -302,36 +284,15 @@
           .then(function(response) {
             log('PIX generated:', response);
 
-            // Cria a Transaction na Nuvemshop
-            return Checkout.processPayment({
-              transaction_id: response.transaction_id,
-              status: response.status
-            }).then(function() {
-              return response;
-            });
-          })
-          .then(function(response) {
-            // Mostra o QR Code do PIX
-            if (response.pix_qr_code || response.pix_code) {
-              showPixQRCode(response.pix_qr_code, response.pix_code);
+            // Renderiza o QR Code no container
+            renderPixQRCode(response.pix_qr_code, response.pix_code);
 
-              // Inicia polling para verificar pagamento
-              startPixPolling(response.transaction_id, Checkout, callback);
-            } else {
-              callback({
-                success: true,
-                transaction_id: response.transaction_id,
-                redirect_url: response.redirect_url
-              });
-            }
+            // Inicia polling para verificar pagamento
+            startPixPolling(response.transaction_id, Checkout, actions);
           })
           .catch(function(error) {
             log('PIX error:', error);
-            Checkout.showErrorCode(error.code || error.error || 'pix_generation_error');
-            callback({
-              success: false,
-              error_code: error.code || error.error || 'pix_generation_error'
-            });
+            renderPixError(error.error || 'Erro ao gerar PIX');
           });
         }
       });
@@ -360,7 +321,7 @@
 
           const paymentPayload = {
             store_id: checkoutData.store?.id || checkoutData.storeId,
-            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id,
+            order_id: checkoutData.order?.id || checkoutData.orderId || checkoutData.id || 'temp_' + Date.now(),
             amount: checkoutData.order?.total || checkoutData.total || checkoutData.totalPrice,
             currency: checkoutData.order?.currency || checkoutData.currency || 'BRL',
             payment_method: 'boleto',
@@ -385,14 +346,7 @@
           .then(function(response) {
             log('Boleto generated:', response);
 
-            return Checkout.processPayment({
-              transaction_id: response.transaction_id,
-              status: response.status
-            }).then(function() {
-              return response;
-            });
-          })
-          .then(function(response) {
+            // Retorna sucesso com redirect URL
             callback({
               success: true,
               transaction_id: response.transaction_id,
@@ -490,7 +444,7 @@
    * Renderiza formulário de cartão de crédito
    */
   function renderCreditCardForm() {
-    const container = document.querySelector('[data-payment-option="payco_credit_card"]');
+    const container = document.querySelector('[data-payment-option="payco_credit_card_integracao2"]');
     if (!container) return;
 
     container.innerHTML = `
@@ -574,20 +528,50 @@
   }
 
   /**
-   * Renderiza informações do PIX
+   * Renderiza QR Code do PIX no container
    */
-  function renderPixInfo() {
+  function renderPixQRCode(qrCodeImage, pixCode) {
     const container = document.querySelector('[data-payment-option="payco_pix"]');
     if (!container) return;
 
     container.innerHTML = `
       <div class="payco-form">
-        <div class="payco-info">
-          <p>✓ Pagamento instantâneo via PIX</p>
-          <p>✓ Aprovação imediata</p>
-          <p>✓ Disponível 24/7</p>
+        <div class="payco-qrcode">
+          <h4>Escaneie o QR Code:</h4>
+          ${qrCodeImage ? `<img src="data:image/png;base64,${qrCodeImage}" alt="QR Code PIX" />` : ''}
+          ${pixCode ? `
+            <div class="payco-pix-code">
+              <label>Ou copie o código PIX:</label>
+              <input type="text" value="${pixCode}" readonly id="payco-pix-code-input" />
+              <button onclick="
+                document.getElementById('payco-pix-code-input').select();
+                document.execCommand('copy');
+                this.textContent = 'Copiado!';
+                setTimeout(() => this.textContent = 'Copiar', 2000);
+              ">Copiar</button>
+            </div>
+          ` : ''}
+          <p class="payco-waiting">Aguardando pagamento...</p>
         </div>
-        <div id="payco-pix-qrcode" style="display: none;"></div>
+      </div>
+    `;
+
+    injectStyles();
+  }
+
+  /**
+   * Renderiza erro do PIX
+   */
+  function renderPixError(errorMessage) {
+    const container = document.querySelector('[data-payment-option="payco_pix"]');
+    if (!container) return;
+
+    container.innerHTML = `
+      <div class="payco-form">
+        <div class="payco-error">
+          <p>❌ ${errorMessage}</p>
+          <p>Por favor, tente novamente ou escolha outro método de pagamento.</p>
+        </div>
       </div>
     `;
 
@@ -687,53 +671,26 @@
   }
 
   /**
-   * Exibe QR Code do PIX
-   */
-  function showPixQRCode(qrCodeImage, pixCode) {
-    const container = document.getElementById('payco-pix-qrcode');
-    if (!container) return;
-
-    container.innerHTML = `
-      <div class="payco-qrcode">
-        <h4>Escaneie o QR Code:</h4>
-        ${qrCodeImage ? `<img src="${qrCodeImage}" alt="QR Code PIX" />` : ''}
-        ${pixCode ? `
-          <div class="payco-pix-code">
-            <label>Ou copie o código PIX:</label>
-            <input type="text" value="${pixCode}" readonly id="payco-pix-code-input" />
-            <button onclick="
-              document.getElementById('payco-pix-code-input').select();
-              document.execCommand('copy');
-              this.textContent = 'Copiado!';
-              setTimeout(() => this.textContent = 'Copiar', 2000);
-            ">Copiar</button>
-          </div>
-        ` : ''}
-        <p class="payco-waiting">Aguardando pagamento...</p>
-      </div>
-    `;
-
-    container.style.display = 'block';
-  }
-
-  /**
    * Polling para verificar pagamento PIX
    */
-  function startPixPolling(transactionId, Checkout, callback) {
+  function startPixPolling(transactionId, Checkout, actions) {
     let attempts = 0;
     const maxAttempts = 60; // 30 minutos
 
     const checkPayment = function() {
       if (attempts >= maxAttempts) {
+        log('PIX polling timeout after 30 minutes');
         return;
       }
 
       fetch(API_URL + '/payments/check/' + transactionId)
         .then(response => response.json())
         .then(data => {
+          log('PIX polling response:', data);
           if (data.paid) {
-            callback({
-              success: true,
+            log('PIX payment confirmed!');
+            // Submete o pagamento aprovado
+            actions.submit({
               transaction_id: transactionId
             });
           } else {
@@ -743,9 +700,14 @@
         })
         .catch(error => {
           log('Polling error:', error);
+          attempts++;
+          if (attempts < maxAttempts) {
+            setTimeout(checkPayment, 30000);
+          }
         });
     };
 
+    // Inicia o primeiro check após 10 segundos
     setTimeout(checkPayment, 10000);
   }
 
@@ -834,6 +796,17 @@
         margin-top: 15px;
         font-weight: 600;
         color: #ff9800;
+      }
+      .payco-error {
+        padding: 15px;
+        background: #ffebee;
+        border-radius: 4px;
+        border-left: 4px solid #f44336;
+      }
+      .payco-error p {
+        margin: 8px 0;
+        font-size: 14px;
+        color: #c62828;
       }
     `;
     document.head.appendChild(style);

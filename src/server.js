@@ -26,6 +26,13 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Servir arquivos estáticos (checkout.js e frontend build)
 app.use('/static', express.static(path.join(__dirname, '../public')));
 
+// Rota direta para o script do checkout (usado pela Nuvemshop)
+app.get('/checkout2.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.sendFile(path.join(__dirname, '../public/checkout2.js'));
+});
+
 // Servir frontend em produção
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));

@@ -58,15 +58,24 @@ router.get('/install', async (req, res) => {
             payment_methods: ['boleto']
           }
         ],
-        checkout_js_url: `https://api.dev.codiguz.com/storage/v1/object/public/scripts/checkout2.js`,
+        checkout_js_url: `${process.env.BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com'}/checkout2.js`,
         checkout_payment_options: [
           {
-            id: 'payco_credit_card',
+            id: 'payco_credit_card_integracao2',
             name: 'Cartão de Crédito',
             description: 'Pague com cartão de crédito em até 12x',
             logo_url: 'https://seu-dominio.com/credit-card-icon.png',
             supported_billing_countries: ['BR'],
             supported_payment_method_types: ['credit_card'],
+            integration_type: 'transparent'
+          },
+          {
+            id: 'payco_debit_card',
+            name: 'Cartão de Débito',
+            description: 'Pagamento à vista com cartão de débito',
+            logo_url: 'https://seu-dominio.com/debit-card-icon.png',
+            supported_billing_countries: ['BR'],
+            supported_payment_method_types: ['debit_card'],
             integration_type: 'transparent'
           },
           {
@@ -76,7 +85,16 @@ router.get('/install', async (req, res) => {
             logo_url: 'https://seu-dominio.com/pix-icon.png',
             supported_billing_countries: ['BR'],
             supported_payment_method_types: ['pix'],
-            integration_type: 'redirect'
+            integration_type: 'transparent'
+          },
+          {
+            id: 'payco_boleto',
+            name: 'Boleto Bancário',
+            description: 'Boleto com vencimento em 3 dias úteis',
+            logo_url: 'https://seu-dominio.com/boleto-icon.png',
+            supported_billing_countries: ['BR'],
+            supported_payment_method_types: ['boleto'],
+            integration_type: 'external'
           }
         ],
         rates_definition: {
@@ -187,15 +205,24 @@ router.get('/callback', async (req, res) => {
           payment_methods: ['boleto']
         }
       ],
-      checkout_js_url: `${process.env.BACKEND_URL || 'http://localhost:3000'}/static/checkout.js`,
+      checkout_js_url: `${process.env.BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com'}/checkout2.js`,
       checkout_payment_options: [
         {
-          id: 'payco_credit_card',
+          id: 'payco_credit_card_integracao2',
           name: 'Cartão de Crédito',
           description: 'Pague com cartão de crédito em até 12x',
           logo_url: 'https://seu-dominio.com/credit-card-icon.png',
           supported_billing_countries: ['BR'],
           supported_payment_method_types: ['credit_card'],
+          integration_type: 'transparent'
+        },
+        {
+          id: 'payco_debit_card',
+          name: 'Cartão de Débito',
+          description: 'Pagamento à vista com cartão de débito',
+          logo_url: 'https://seu-dominio.com/debit-card-icon.png',
+          supported_billing_countries: ['BR'],
+          supported_payment_method_types: ['debit_card'],
           integration_type: 'transparent'
         },
         {
@@ -205,7 +232,16 @@ router.get('/callback', async (req, res) => {
           logo_url: 'https://seu-dominio.com/pix-icon.png',
           supported_billing_countries: ['BR'],
           supported_payment_method_types: ['pix'],
-          integration_type: 'redirect'
+          integration_type: 'transparent'
+        },
+        {
+          id: 'payco_boleto',
+          name: 'Boleto Bancário',
+          description: 'Boleto com vencimento em 3 dias úteis',
+          logo_url: 'https://seu-dominio.com/boleto-icon.png',
+          supported_billing_countries: ['BR'],
+          supported_payment_method_types: ['boleto'],
+          integration_type: 'external'
         }
       ],
       rates_definition: {
