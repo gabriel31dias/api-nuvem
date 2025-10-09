@@ -1,7 +1,7 @@
 const axios = require('axios');
 const paycoAuthService = require('./paycoAuth');
 
-const PAYCO_API_BASE_URL = process.env.PAYCO_API_URL || 'https://api.payments.payco.com.br/public-api/api/v1/payments/pix';
+const PAYCO_API_BASE_URL = process.env.PAYCO_API_URL || 'https://api.payments.payco.com.br';
 
 /**
  * Cliente para integração com Payco Payments Gateway
@@ -198,7 +198,7 @@ class PaycoAPI {
       console.log('header', header)
 
       const response = await axios.post(
-        `${this.baseURL}/payments/pix`,
+        `${this.baseURL}/public-api/api/v1/payments/pix`,
         payload,
         { headers: header}
       );
