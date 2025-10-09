@@ -12,11 +12,17 @@
     ? 'http://localhost:3000'
     : (window.PAYCO_BACKEND_URL || 'https://api-nuvem-mqgt.onrender.com');
 
-  const DEBUG = window.location.hostname === 'localhost';
+  const DEBUG = true; // Sempre ativado para debug
 
   function log(...args) {
     if (DEBUG) console.log('[Payco]', ...args);
   }
+
+  // Log da configuração inicial
+  log('=== PAYCO CHECKOUT INITIALIZED ===');
+  log('API_URL:', API_URL);
+  log('Hostname:', window.location.hostname);
+  log('DEBUG mode:', DEBUG);
 
   /**
    * Função principal que é chamada pela Nuvemshop
@@ -122,26 +128,51 @@
             body: JSON.stringify(paymentPayload)
           })
           .then(function(response) {
+            log('Response status:', response.status);
+            log('Response ok:', response.ok);
+
             return response.json().then(function(data) {
-              return response.ok ? data : Promise.reject(data);
+              log('Response data:', data);
+              if (!response.ok) {
+                return Promise.reject(data);
+              }
+              return data;
             });
           })
           .then(function(response) {
             log('Payment processed successfully:', response);
 
-            // Retorna sucesso direto sem chamar processPayment
-            // O backend já criou a transaction na Nuvemshop
+            // Verifica se a resposta tem os dados necessários
+            if (!response.transaction_id && !response.id) {
+              log('ERROR: No transaction_id in response');
+              throw new Error('Transaction ID not received from backend');
+            }
+
+            const transactionId = response.transaction_id || response.id;
+            log('Using transaction_id:', transactionId);
+
+            // Retorna sucesso com dados da transação
             callback({
               success: true,
-              transaction_id: response.transaction_id
+              transaction_id: transactionId,
+              status: response.status || 'authorized'
             });
           })
           .catch(function(error) {
             log('Payment error:', error);
-            Checkout.showErrorCode(error.code || error.error || 'payment_processing_error');
+            log('Error details:', JSON.stringify(error));
+
+            const errorCode = error.code || error.error_code || error.error || 'payment_processing_error';
+            const errorMessage = error.message || error.error || 'Erro ao processar pagamento';
+
+            log('Error code:', errorCode);
+            log('Error message:', errorMessage);
+
+            Checkout.showErrorCode(errorCode);
             callback({
               success: false,
-              error_code: error.code || error.error || 'payment_processing_error'
+              error_code: errorCode,
+              error_message: errorMessage
             });
           });
         }
@@ -222,39 +253,70 @@
             body: JSON.stringify(paymentPayload)
           })
           .then(function(response) {
+            log('Debit response status:', response.status);
+            log('Debit response ok:', response.ok);
+
             return response.json().then(function(data) {
-              return response.ok ? data : Promise.reject(data);
+              log('Debit response data:', data);
+              if (!response.ok) {
+                return Promise.reject(data);
+              }
+              return data;
             });
           })
           .then(function(response) {
             log('Debit payment processed:', response);
 
-            // Retorna sucesso direto sem chamar processPayment
-            // O backend já criou a transaction na Nuvemshop
+            // Verifica se a resposta tem os dados necessários
+            if (!response.transaction_id && !response.id) {
+              log('ERROR: No transaction_id in debit response');
+              throw new Error('Transaction ID not received from backend');
+            }
+
+            const transactionId = response.transaction_id || response.id;
+            log('Using debit transaction_id:', transactionId);
+
+            // Retorna sucesso com dados da transação
             callback({
               success: true,
-              transaction_id: response.transaction_id
+              transaction_id: transactionId,
+              status: response.status || 'authorized'
             });
           })
           .catch(function(error) {
             log('Debit payment error:', error);
-            Checkout.showErrorCode(error.code || error.error || 'payment_processing_error');
+            log('Debit error details:', JSON.stringify(error));
+
+            const errorCode = error.code || error.error_code || error.error || 'payment_processing_error';
+            const errorMessage = error.message || error.error || 'Erro ao processar pagamento';
+
+            log('Debit error code:', errorCode);
+            log('Debit error message:', errorMessage);
+
+            Checkout.showErrorCode(errorCode);
             callback({
               success: false,
-              error_code: error.code || error.error || 'payment_processing_error'
+              error_code: errorCode,
+              error_message: errorMessage
             });
           });
         }
       });
 
       // ============================================
-      // PIX - Transparent Integration (QR Code inline)
+      // PIX - Transparent Integration (exibe QR Code diretamente no checkout)
       // ============================================
       const PixPayment = PaymentOptions.Transparent.Iframe({
         id: 'payco_pix',
+        version: 'v2',
 
-        onLoad: function(actions) {
+        onLoad: function() {
           log('PIX payment option loaded');
+          renderPixInfo();
+        },
+
+        onSubmit: function(callback) {
+          log('PIX payment submitted');
 
           const checkoutData = Checkout.getData();
           const customerData = extractCustomerData(checkoutData);
@@ -270,29 +332,65 @@
 
           log('Payment payload for PIX:', JSON.stringify(paymentPayload, null, 2));
 
-          // Gera o PIX quando o método é carregado
+          // Gera o PIX
           fetch(API_URL + '/payments/process', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(paymentPayload)
           })
           .then(function(response) {
+            log('PIX response status:', response.status);
+            log('PIX response ok:', response.ok);
+
             return response.json().then(function(data) {
-              return response.ok ? data : Promise.reject(data);
+              log('PIX response data:', data);
+              if (!response.ok) {
+                return Promise.reject(data);
+              }
+              return data;
             });
           })
           .then(function(response) {
             log('PIX generated:', response);
 
-            // Renderiza o QR Code no container
-            renderPixQRCode(response.pix_qr_code, response.pix_code);
+            // Valida se tem os dados necessários
+            if (!response.transaction_id && !response.id) {
+              log('ERROR: No transaction_id in PIX response');
+              throw new Error('Transaction ID not received from backend');
+            }
+
+            const transactionId = response.transaction_id || response.id;
+            const qrCode = response.pix_qr_code;
+            const pixCode = response.pix_code;
+
+            log('PIX Transaction ID:', transactionId);
+            log('PIX QR Code present:', !!qrCode);
+            log('PIX Code present:', !!pixCode);
+
+            // Renderiza o QR Code diretamente na página
+            renderPixQRCode(qrCode, pixCode);
+
+            // Retorna sucesso
+            callback({
+              success: true,
+              transaction_id: transactionId,
+              status: 'pending'
+            });
 
             // Inicia polling para verificar pagamento
-            startPixPolling(response.transaction_id, Checkout, actions);
+            log('Starting PIX polling for transaction:', transactionId);
+            setTimeout(function() {
+              startPixPolling(transactionId, Checkout, callback);
+            }, 5000);
           })
           .catch(function(error) {
             log('PIX error:', error);
-            renderPixError(error.error || 'Erro ao gerar PIX');
+            renderPixError(error.message || error.error || 'Erro ao gerar PIX');
+            Checkout.showErrorCode(error.code || error.error || 'pix_generation_error');
+            callback({
+              success: false,
+              error_code: error.code || error.error || 'pix_generation_error'
+            });
           });
         }
       });
@@ -528,6 +626,35 @@
   }
 
   /**
+   * Renderiza informações do PIX
+   */
+  function renderPixInfo() {
+    const container = document.querySelector('[data-payment-option="payco_pix"]');
+    if (!container) {
+      log('ERROR: PIX container not found!');
+      return;
+    }
+
+    log('Rendering PIX info in container:', container);
+
+    container.innerHTML = `
+      <div class="payco-form">
+        <div class="payco-info">
+          <p>✓ Pagamento instantâneo</p>
+          <p>✓ Aprovação em até 2 minutos</p>
+          <p>✓ Disponível 24h por dia</p>
+          <p style="margin-top: 15px; font-size: 13px; color: #666;">
+            O QR Code será exibido após confirmar o pedido
+          </p>
+        </div>
+      </div>
+    `;
+
+    injectStyles();
+  }
+
+
+  /**
    * Renderiza QR Code do PIX no container
    */
   function renderPixQRCode(qrCodeImage, pixCode) {
@@ -673,13 +800,14 @@
   /**
    * Polling para verificar pagamento PIX
    */
-  function startPixPolling(transactionId, Checkout, actions) {
+  function startPixPolling(transactionId, Checkout, callback) {
     let attempts = 0;
     const maxAttempts = 60; // 30 minutos
 
     const checkPayment = function() {
       if (attempts >= maxAttempts) {
         log('PIX polling timeout after 30 minutes');
+        renderPixError('Tempo de espera expirado. Por favor, tente novamente.');
         return;
       }
 
@@ -689,26 +817,41 @@
           log('PIX polling response:', data);
           if (data.paid) {
             log('PIX payment confirmed!');
-            // Submete o pagamento aprovado
-            actions.submit({
+
+            // Atualiza a interface mostrando sucesso
+            const container = document.querySelector('[data-payment-option="payco_pix"]');
+            if (container) {
+              container.innerHTML = `
+                <div class="payco-form">
+                  <div class="payco-success" style="text-align: center; padding: 20px;">
+                    <h3 style="color: #00a650; margin-bottom: 10px;">✓ Pagamento confirmado!</h3>
+                    <p>Seu pedido está sendo processado.</p>
+                  </div>
+                </div>
+              `;
+            }
+
+            // Notifica sucesso para finalizar o checkout
+            callback({
+              success: true,
               transaction_id: transactionId
             });
           } else {
             attempts++;
-            setTimeout(checkPayment, 30000);
+            setTimeout(checkPayment, 10000); // Verifica a cada 10 segundos
           }
         })
         .catch(error => {
           log('Polling error:', error);
           attempts++;
           if (attempts < maxAttempts) {
-            setTimeout(checkPayment, 30000);
+            setTimeout(checkPayment, 10000);
           }
         });
     };
 
-    // Inicia o primeiro check após 10 segundos
-    setTimeout(checkPayment, 10000);
+    // Inicia o primeiro check após 5 segundos
+    setTimeout(checkPayment, 5000);
   }
 
   /**
